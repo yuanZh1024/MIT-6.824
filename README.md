@@ -39,7 +39,7 @@ MIT 6.824 课程的学习资料
 - [Fault-Tolerant Virtual Machines(2010)](https://pdos.csail.mit.edu/6.824/papers/vm-ft.pdf)
 - [Raft Extended(2014)](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf)
 
-
+http://nil.csail.mit.edu/6.824/2016/labs/lab-1.html
 
 ## 学习小组 Group
 
