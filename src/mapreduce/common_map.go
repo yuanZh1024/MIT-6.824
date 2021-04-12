@@ -1,12 +1,17 @@
 package mapreduce
 
 import (
+	"encoding/json"
 	"hash/fnv"
+	"io/ioutil"
+	"os"
 )
 
 // doMap manages one map task: it reads one of the input files
 // (inFile), calls the user-defined map function (mapF) for that file's
 // contents, and partitions the output into nReduce intermediate files.
+/*doMap管理一个map任务：它读取其中一个输入文件（inFile），
+为该文件的内容调用 用户定义的映射函数（mapF），并将输出分区到nReduce中间文件中。*/
 func doMap(
 	jobName string, // the name of the MapReduce job
 	mapTaskNumber int, // which map task this is
@@ -14,6 +19,30 @@ func doMap(
 	nReduce int, // the number of reduce task that will be run ("R" in the paper)
 	mapF func(file string, contents string) []KeyValue,
 ) {
+	data, err := ioutil.ReadFile(inFile)
+	if err != nil {
+		debug("read input file err:%v", err)
+		return
+	}
+	kvs := mapF(inFile, string(data))
+
+	reduceFileMap := make(map[int]*os.File)
+	for i := 0; i < nReduce; i++ {
+		reduceFileName := reduceName(jobName, mapTaskNumber, i)
+		reduceFile, err := os.OpenFile(reduceFileName, os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			debug("create reduce file err:%v", err)
+			return
+		}
+		defer reduceFile.Close()
+		reduceFileMap[i] = reduceFile
+	}
+
+	for _, kv := range kvs {
+		r := ihash(kv.Key) % nReduce
+		enc := json.NewEncoder(reduceFileMap[r])
+		enc.Encode(&kv)
+	}
 	//
 	// You will need to write this function.
 	//
@@ -38,7 +67,7 @@ func doMap(
 	// disk can be tricky, especially when taking into account that both
 	// keys and values could contain newlines, quotes, and any other
 	// character you can think of.
-	//
+	// 想出一个如何格式化磁盘上的键/值对的方案可能很棘手，特别是当考虑到键和值都可能包含换行符、引号和您能想到的任何其他字符时。
 	// One format often used for serializing data to a byte stream that the
 	// other end can correctly reconstruct is JSON. You are not required to
 	// use JSON, but as the output of the reduce tasks *must* be JSON,
@@ -46,6 +75,11 @@ func doMap(
 	// out a data structure as a JSON string to a file using the commented
 	// code below. The corresponding decoding functions can be found in
 	// common_reduce.go.
+	/* 用于将数据序列化到另一端可以正确重构的字节流的一种格式是JSON。
+	您不需要使用JSON，但由于减少任务*的输出必须*是JSON，
+	在这里熟悉它可能是有用的。您可以使用下面的注释代码将数据结构作为JSON字符串写入文件。
+	对应的解码函数可以在common_reduce.go中找到。
+	*/
 	//
 	//   enc := json.NewEncoder(file)
 	//   for _, kv := ... {
@@ -53,6 +87,7 @@ func doMap(
 	//
 	// Remember to close the file after you have written all the values!
 	//
+
 }
 
 func ihash(s string) int {
